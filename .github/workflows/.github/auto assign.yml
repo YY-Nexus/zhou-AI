@@ -1,0 +1,5 @@
+addReviewers: true
+reviewers:
+  - YY-Nexus
+  # 可添加其他协作者
+numberOfReviewers: 1
