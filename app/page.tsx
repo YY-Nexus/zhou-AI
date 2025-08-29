@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useState, useRef } from "react"
-import { Mic, Send, Download, Upload, X, Volume2, VolumeX, Square, Brain, Wand2 } from "lucide-react"
+import { Mic, Send, Download, Upload, X, Volume2, VolumeX, Square, Brain, Wand2, Settings } from "lucide-react"
 import { AnimatedTextBlock } from "@/components/typewriter-effect"
 
 import { Button } from "@/components/ui/button"
@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useLocalModels } from "@/hooks/use-local-models"
 import { useEducationAI } from "@/hooks/use-education-ai"
+import { useVoiceSettings } from "@/hooks/use-voice-settings"
 import { ModelSelector } from "@/components/model-selector"
 import { GeometricAnimation } from "@/components/geometric-animation"
+import { VoiceSettingsDialog } from "@/components/voice-settings-dialog"
 import type { LocalModel } from "@/lib/local-models"
 
 type AppState = "splash" | "main"
@@ -52,12 +54,13 @@ export default function Dashboard() {
   // 语音功能状态
   const [isRecording, setIsRecording] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [audioChunks, setAudioChunks] = useState<Blob[]>([])
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false)
 
   const { localModels, sendMessage: sendLocalMessage } = useLocalModels()
   const { subjects, askQuestion, analyzeLearningProgress } = useEducationAI()
+  const voiceSettings = useVoiceSettings()
   const [selectedModelType, setSelectedModelType] = useState<"cloud" | "local">("cloud")
   const [selectedLocalModel, setSelectedLocalModel] = useState<LocalModel | null>(null)
 
@@ -88,8 +91,30 @@ export default function Dashboard() {
         icon: "🌍",
         action: "我想提高英语水平，请帮我规划学习路径",
       },
-      { title: "科学探索", description: "物理化学生物综合", icon: "🔬", action: "我对科学很感兴趣，请推荐学习内容" },
-      { title: "艺术创作", description: "绘画音乐创意培养", icon: "🎨", action: "我想培养艺术创作能力，请给我建议" },
+      { 
+        title: "科学探索", 
+        description: "物理化学生物综合", 
+        icon: "🔬", 
+        action: "我对科学很感兴趣，请推荐学习内容" 
+      },
+      { 
+        title: "艺术创作", 
+        description: "绘画音乐创意培养", 
+        icon: "🎨", 
+        action: "我想培养艺术创作能力，请给我建议" 
+      },
+      {
+        title: "编程启蒙",
+        description: "逻辑思维、创意编程",
+        icon: "💻",
+        action: "我想学习编程，请为我介绍适合的入门课程",
+      },
+      {
+        title: "历史文化",
+        description: "中华文明、文化传承",
+        icon: "🏛️",
+        action: "我想了解历史文化，请推荐学习内容",
+      },
     ],
   }
 
@@ -113,9 +138,12 @@ export default function Dashboard() {
     let suggestions: SmartSuggestion[] = []
 
     // 检查教育相关关键词
-    const educationKeywords = ["学习", "数学", "语文", "英语", "科学", "奥数", "竞赛", "作业", "考试", "提高", "辅导"]
+    const educationKeywords = [
+      "学习", "数学", "语文", "英语", "科学", "奥数", "竞赛", "作业", "考试", "提高", "辅导",
+      "编程", "代码", "算法", "逻辑", "历史", "文化", "传统", "艺术", "绘画", "音乐", "创意"
+    ]
     if (educationKeywords.some((keyword) => lowerInput.includes(keyword))) {
-      suggestions = [...suggestions, ...educationSuggestions.subjects.slice(0, 3)]
+      suggestions = [...suggestions, ...educationSuggestions.subjects.slice(0, 4)]
     }
 
     setSmartSuggestions(suggestions)
@@ -158,14 +186,20 @@ export default function Dashboard() {
   }
 
   // 语音播放功能
-  const speakText = (text: string) => {
-    if (!voiceEnabled) return
+  const speakText = (text: string, subjectId?: string) => {
+    if (!voiceSettings.isEnabled) return
 
     speechSynthesis.cancel()
+    
+    const settings = voiceSettings.getCurrentSettings()
+    const voice = voiceSettings.getBestVoice(subjectId)
+    
     const utterance = new SpeechSynthesisUtterance(text)
+    utterance.voice = voice
     utterance.lang = "zh-CN"
-    utterance.rate = 0.9
-    utterance.pitch = 1
+    utterance.rate = settings.rate
+    utterance.pitch = settings.pitch
+    utterance.volume = settings.volume
 
     utterance.onstart = () => setIsPlaying(true)
     utterance.onend = () => setIsPlaying(false)
@@ -250,7 +284,7 @@ export default function Dashboard() {
           },
         ])
 
-        if (voiceEnabled) {
+        if (voiceSettings.isEnabled) {
           setTimeout(
             () => {
               speakText(response.content)
@@ -705,7 +739,7 @@ export default function Dashboard() {
                           className={`rounded-full ${
                             isPlaying
                               ? "text-green-500 hover:text-green-400"
-                              : voiceEnabled
+                              : voiceSettings.isEnabled
                                 ? "text-slate-400 hover:text-cyan-400"
                                 : "text-slate-600 hover:text-slate-500"
                           }`}
@@ -713,13 +747,13 @@ export default function Dashboard() {
                             if (isPlaying) {
                               stopSpeaking()
                             } else {
-                              setVoiceEnabled(!voiceEnabled)
+                              voiceSettings.toggleEnabled()
                             }
                           }}
                         >
                           {isPlaying ? (
                             <VolumeX className="h-5 w-5" />
-                          ) : voiceEnabled ? (
+                          ) : voiceSettings.isEnabled ? (
                             <Volume2 className="h-5 w-5" />
                           ) : (
                             <VolumeX className="h-5 w-5" />
@@ -727,7 +761,26 @@ export default function Dashboard() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{isPlaying ? "停止播放" : voiceEnabled ? "关闭语音输出" : "开启语音输出"}</p>
+                        <p>{isPlaying ? "停止播放" : voiceSettings.isEnabled ? "关闭语音输出" : "开启语音输出"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  {/* 语音设置按钮 */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full text-slate-400 hover:text-cyan-400"
+                          onClick={() => setShowVoiceSettings(true)}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>语音设置</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -779,6 +832,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* 语音设置对话框 */}
+      <VoiceSettingsDialog 
+        open={showVoiceSettings} 
+        onOpenChange={setShowVoiceSettings} 
+      />
     </div>
   )
 }
