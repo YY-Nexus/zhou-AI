@@ -204,6 +204,66 @@ export const EDUCATION_SUBJECTS: Subject[] = [
       },
     ],
   },
+  {
+    id: "programming",
+    name: "编程启蒙",
+    description: "逻辑思维、算法基础、创意编程、计算思维",
+    icon: "💻",
+    color: "#6366f1",
+    topics: [
+      {
+        id: "logic",
+        name: "逻辑思维",
+        difficulty: "basic",
+        description: "条件判断、循环概念、问题分解",
+        keywords: ["逻辑", "判断", "循环", "分解", "思维", "推理"],
+      },
+      {
+        id: "scratch",
+        name: "图形化编程",
+        difficulty: "basic",
+        description: "Scratch编程、动画制作、游戏设计",
+        keywords: ["Scratch", "编程", "动画", "游戏", "图形化", "创意"],
+      },
+      {
+        id: "algorithms",
+        name: "算法入门",
+        difficulty: "intermediate",
+        description: "排序算法、搜索算法、递归思想",
+        keywords: ["算法", "排序", "搜索", "递归", "效率", "优化"],
+      },
+    ],
+  },
+  {
+    id: "history",
+    name: "历史文化",
+    description: "中华文明、世界历史、文化传承、历史思维",
+    icon: "🏛️",
+    color: "#b45309",
+    topics: [
+      {
+        id: "chinese-history",
+        name: "中华文明",
+        difficulty: "basic",
+        description: "古代历史、朝代更替、重要事件",
+        keywords: ["历史", "朝代", "文明", "古代", "事件", "人物"],
+      },
+      {
+        id: "world-history",
+        name: "世界历史",
+        difficulty: "intermediate",
+        description: "世界文明、重大变革、国际关系",
+        keywords: ["世界", "文明", "变革", "战争", "革命", "发展"],
+      },
+      {
+        id: "culture",
+        name: "文化传承",
+        difficulty: "intermediate",
+        description: "传统文化、民俗风情、文化交流",
+        keywords: ["文化", "传统", "民俗", "交流", "传承", "习俗"],
+      },
+    ],
+  },
 ]
 
 export const LEARNING_LEVELS = {
@@ -225,11 +285,62 @@ export const AI_TEACHING_MODES = {
     description: "快速响应，简洁明了",
     responseTime: "1-2秒",
     detailLevel: "basic",
+    voiceSettings: { rate: 1.0, pitch: 1.0 },
   },
   deep: {
     name: "深度分析",
     description: "详细分析，深入讲解",
     responseTime: "3-5秒",
     detailLevel: "comprehensive",
+    voiceSettings: { rate: 0.8, pitch: 0.9 },
+  },
+  interactive: {
+    name: "互动教学",
+    description: "启发式教学，引导思考",
+    responseTime: "2-3秒",
+    detailLevel: "guided",
+    voiceSettings: { rate: 0.9, pitch: 1.1 },
+  },
+  practice: {
+    name: "练习模式",
+    description: "题目讲解，解题指导",
+    responseTime: "2-4秒",
+    detailLevel: "practical",
+    voiceSettings: { rate: 0.9, pitch: 1.0 },
+  },
+}
+
+export const VOICE_PROFILES = {
+  teacher_female: {
+    name: "温柔女老师",
+    description: "温和亲切，适合基础教学",
+    gender: "female",
+    ageGroup: "adult",
+    settings: { rate: 0.9, pitch: 1.1, volume: 0.8 },
+    subjects: ["chinese", "arts", "history"],
+  },
+  teacher_male: {
+    name: "稳重男老师",
+    description: "沉稳专业，适合逻辑思维",
+    gender: "male", 
+    ageGroup: "adult",
+    settings: { rate: 0.85, pitch: 0.9, volume: 0.8 },
+    subjects: ["math", "math-competition", "science", "programming"],
+  },
+  young_female: {
+    name: "活泼姐姐",
+    description: "年轻活泼，适合兴趣启发",
+    gender: "female",
+    ageGroup: "young",
+    settings: { rate: 1.0, pitch: 1.2, volume: 0.9 },
+    subjects: ["english", "arts", "programming"],
+  },
+  narrator: {
+    name: "知识讲解员",
+    description: "专业解说，适合深度学习",
+    gender: "neutral",
+    ageGroup: "adult", 
+    settings: { rate: 0.8, pitch: 1.0, volume: 0.8 },
+    subjects: ["science", "history", "culture"],
   },
 }
