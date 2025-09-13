@@ -1,44 +1,30 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 
 interface TypewriterEffectProps {
   text: string
   speed?: number
   onComplete?: () => void
   className?: string
-  showCursor?: boolean
-  cursorChar?: string
 }
 
-export function TypewriterEffect({
-  text,
-  speed = 50,
-  onComplete,
-  className = "",
-  showCursor = true,
-  cursorChar = "|",
-}: TypewriterEffectProps) {
+export function TypewriterEffect({ text, speed = 50, onComplete, className = "" }: TypewriterEffectProps) {
   const [displayText, setDisplayText] = useState("")
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (currentIndex < text.length) {
-      intervalRef.current = setTimeout(() => {
+      const timer = setTimeout(() => {
         setDisplayText((prev) => prev + text[currentIndex])
         setCurrentIndex((prev) => prev + 1)
       }, speed)
+
+      return () => clearTimeout(timer)
     } else if (!isComplete) {
       setIsComplete(true)
       onComplete?.()
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearTimeout(intervalRef.current)
-      }
     }
   }, [currentIndex, text, speed, onComplete, isComplete])
 
@@ -52,11 +38,7 @@ export function TypewriterEffect({
   return (
     <span className={className}>
       {displayText}
-      {showCursor && (
-        <span className={`inline-block ${isComplete ? "animate-pulse" : "animate-pulse"} text-cyan-400`}>
-          {cursorChar}
-        </span>
-      )}
+      {!isComplete && <span className="animate-pulse">|</span>}
     </span>
   )
 }
@@ -69,24 +51,16 @@ interface TypewriterLineProps {
 export function TypewriterLine({ isActive, className = "" }: TypewriterLineProps) {
   return (
     <div className={`relative ${className}`}>
-      {/* 主线条 */}
       <div
-        className={`h-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300 ${
+        className={`h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-1000 ${
           isActive ? "w-full opacity-100" : "w-0 opacity-0"
         }`}
       />
-
-      {/* 发光效果 */}
       <div
-        className={`absolute top-0 h-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 blur-sm transition-all duration-300 ${
-          isActive ? "w-full opacity-60" : "w-0 opacity-0"
+        className={`absolute right-0 top-0 w-2 h-0.5 bg-cyan-400 transition-all duration-300 ${
+          isActive ? "animate-pulse" : "opacity-0"
         }`}
       />
-
-      {/* 末端光点 */}
-      {isActive && (
-        <div className="absolute -right-1 -top-1 w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-lg shadow-cyan-400/50" />
-      )}
     </div>
   )
 }
@@ -94,48 +68,35 @@ export function TypewriterLine({ isActive, className = "" }: TypewriterLineProps
 interface AnimatedTextBlockProps {
   text: string
   speed?: number
-  className?: string
   onComplete?: () => void
+  className?: string
+  showLine?: boolean
 }
 
-export function AnimatedTextBlock({ text, speed = 30, className = "", onComplete }: AnimatedTextBlockProps) {
-  const [isLineActive, setIsLineActive] = useState(false)
-  const [showText, setShowText] = useState(false)
+export function AnimatedTextBlock({
+  text,
+  speed = 30,
+  onComplete,
+  className = "",
+  showLine = true,
+}: AnimatedTextBlockProps) {
+  const [isTyping, setIsTyping] = useState(true)
+  const [showLineAnimation, setShowLineAnimation] = useState(false)
 
-  useEffect(() => {
-    // 先显示线条动画
-    const lineTimer = setTimeout(() => {
-      setIsLineActive(true)
-    }, 100)
-
-    // 然后显示文字
-    const textTimer = setTimeout(() => {
-      setShowText(true)
-    }, 500)
-
-    return () => {
-      clearTimeout(lineTimer)
-      clearTimeout(textTimer)
+  const handleTypewriterComplete = () => {
+    setIsTyping(false)
+    if (showLine) {
+      setTimeout(() => {
+        setShowLineAnimation(true)
+      }, 200)
     }
-  }, [])
-
-  const handleTextComplete = () => {
     onComplete?.()
   }
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <TypewriterLine isActive={isLineActive} />
-      <div className="min-h-[1.5rem]">
-        {showText && (
-          <TypewriterEffect
-            text={text}
-            speed={speed}
-            onComplete={handleTextComplete}
-            className="text-slate-200 whitespace-pre-line"
-          />
-        )}
-      </div>
+      <TypewriterEffect text={text} speed={speed} onComplete={handleTypewriterComplete} className="block" />
+      {showLine && <TypewriterLine isActive={showLineAnimation} className="mt-2" />}
     </div>
   )
 }

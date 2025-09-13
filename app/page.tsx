@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useState, useRef } from "react"
-import { Mic, Send, Download, Upload, X, Volume2, VolumeX, Square, Brain, Wand2, Settings } from "lucide-react"
+import { Mic, Send, Download, Upload, X, Volume2, VolumeX, Square, Brain, Wand2 } from "lucide-react"
 import { AnimatedTextBlock } from "@/components/typewriter-effect"
 
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,9 @@ import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useLocalModels } from "@/hooks/use-local-models"
 import { useEducationAI } from "@/hooks/use-education-ai"
-import { useVoiceSettings } from "@/hooks/use-voice-settings"
 import { ModelSelector } from "@/components/model-selector"
 import { GeometricAnimation } from "@/components/geometric-animation"
-import { VoiceSettingsDialog } from "@/components/voice-settings-dialog"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { LocalModel } from "@/lib/local-models"
 
 type AppState = "splash" | "main"
@@ -54,15 +53,15 @@ export default function Dashboard() {
   // 语音功能状态
   const [isRecording, setIsRecording] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [audioChunks, setAudioChunks] = useState<Blob[]>([])
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false)
 
   const { localModels, sendMessage: sendLocalMessage } = useLocalModels()
   const { subjects, askQuestion, analyzeLearningProgress } = useEducationAI()
-  const voiceSettings = useVoiceSettings()
   const [selectedModelType, setSelectedModelType] = useState<"cloud" | "local">("cloud")
   const [selectedLocalModel, setSelectedLocalModel] = useState<LocalModel | null>(null)
+  const isMobile = useIsMobile()
 
   // 教育AI智能提示配置
   const educationSuggestions = {
@@ -91,30 +90,8 @@ export default function Dashboard() {
         icon: "🌍",
         action: "我想提高英语水平，请帮我规划学习路径",
       },
-      { 
-        title: "科学探索", 
-        description: "物理化学生物综合", 
-        icon: "🔬", 
-        action: "我对科学很感兴趣，请推荐学习内容" 
-      },
-      { 
-        title: "艺术创作", 
-        description: "绘画音乐创意培养", 
-        icon: "🎨", 
-        action: "我想培养艺术创作能力，请给我建议" 
-      },
-      {
-        title: "编程启蒙",
-        description: "逻辑思维、创意编程",
-        icon: "💻",
-        action: "我想学习编程，请为我介绍适合的入门课程",
-      },
-      {
-        title: "历史文化",
-        description: "中华文明、文化传承",
-        icon: "🏛️",
-        action: "我想了解历史文化，请推荐学习内容",
-      },
+      { title: "科学探索", description: "物理化学生物综合", icon: "🔬", action: "我对科学很感兴趣，请推荐学习内容" },
+      { title: "艺术创作", description: "绘画音乐创意培养", icon: "🎨", action: "我想培养艺术创作能力，请给我建议" },
     ],
   }
 
@@ -138,12 +115,9 @@ export default function Dashboard() {
     let suggestions: SmartSuggestion[] = []
 
     // 检查教育相关关键词
-    const educationKeywords = [
-      "学习", "数学", "语文", "英语", "科学", "奥数", "竞赛", "作业", "考试", "提高", "辅导",
-      "编程", "代码", "算法", "逻辑", "历史", "文化", "传统", "艺术", "绘画", "音乐", "创意"
-    ]
+    const educationKeywords = ["学习", "数学", "语文", "英语", "科学", "奥数", "竞赛", "作业", "考试", "提高", "辅导"]
     if (educationKeywords.some((keyword) => lowerInput.includes(keyword))) {
-      suggestions = [...suggestions, ...educationSuggestions.subjects.slice(0, 4)]
+      suggestions = [...suggestions, ...educationSuggestions.subjects.slice(0, 3)]
     }
 
     setSmartSuggestions(suggestions)
@@ -186,20 +160,14 @@ export default function Dashboard() {
   }
 
   // 语音播放功能
-  const speakText = (text: string, subjectId?: string) => {
-    if (!voiceSettings.isEnabled) return
+  const speakText = (text: string) => {
+    if (!voiceEnabled) return
 
     speechSynthesis.cancel()
-    
-    const settings = voiceSettings.getCurrentSettings()
-    const voice = voiceSettings.getBestVoice(subjectId)
-    
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.voice = voice
     utterance.lang = "zh-CN"
-    utterance.rate = settings.rate
-    utterance.pitch = settings.pitch
-    utterance.volume = settings.volume
+    utterance.rate = 0.9
+    utterance.pitch = 1
 
     utterance.onstart = () => setIsPlaying(true)
     utterance.onend = () => setIsPlaying(false)
@@ -284,7 +252,7 @@ export default function Dashboard() {
           },
         ])
 
-        if (voiceSettings.isEnabled) {
+        if (voiceEnabled) {
           setTimeout(
             () => {
               speakText(response.content)
@@ -329,7 +297,7 @@ export default function Dashboard() {
   }
 
   // 增强的AI响应生成
-  const generateAIResponse = async (input: string): Promise<string> => {
+  const generateAIResponse = async (input: string): Promise<{ content: string; isAnimated: boolean }> => {
     if (selectedModelType === "local" && selectedLocalModel) {
       try {
         const messages = [
@@ -341,9 +309,12 @@ export default function Dashboard() {
           { role: "user", content: input },
         ]
         const response = await sendLocalMessage(selectedLocalModel, messages)
-        return response
+        return { content: response, isAnimated: true }
       } catch (error) {
-        return `❌ 本地模型调用失败: ${error instanceof Error ? error.message : "未知错误"}\n\n请检查模型服务是否正常运行，或切换到云端模型。`
+        return {
+          content: `❌ 本地模型调用失败: ${error instanceof Error ? error.message : "未知错误"}\n\n请检查模型服务是否正常运行，或切换到云端模型。`,
+          isAnimated: false,
+        }
       }
     }
 
@@ -456,19 +427,21 @@ export default function Dashboard() {
   // 启动页面渲染
   if (appState === "splash") {
     return (
-      <div className="splash-container min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 text-white relative overflow-hidden flex items-center justify-center">
+      <div className="splash-container min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 text-white relative overflow-hidden flex items-center justify-center transition-all duration-1000">
         <GeometricAnimation color="#06b6d4" speed={0.8} />
 
-        <div className="relative z-10 text-center transform transition-all duration-1000">
+        <div className="relative z-10 text-center transform transition-all duration-1000 px-4">
           {/* LOGO区域 */}
-          <div className="mb-12 transform hover:scale-105 transition-transform duration-300">
+          <div
+            className={`mb-8 md:mb-12 transform hover:scale-105 transition-transform duration-500 ${isMobile ? "animate-bounce-gentle" : ""}`}
+          >
             <div className="relative inline-block">
               <img
                 src="/images/logo-z.png"
                 alt="Mr. Zhou AI Logo"
-                className="h-40 w-40 mx-auto mb-8 animate-pulse drop-shadow-2xl"
+                className={`${isMobile ? "h-24 w-24" : "h-40 w-40"} mx-auto mb-6 md:mb-8 animate-pulse drop-shadow-2xl transition-all duration-500`}
               />
-              <div className="absolute inset-0 h-40 w-40 mx-auto">
+              <div className={`absolute inset-0 ${isMobile ? "h-24 w-24" : "h-40 w-40"} mx-auto`}>
                 <div className="absolute inset-4 border-2 border-cyan-400/40 rounded-full animate-spin-slow"></div>
                 <div className="absolute inset-8 border-2 border-t-cyan-400 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
               </div>
@@ -476,22 +449,28 @@ export default function Dashboard() {
           </div>
 
           {/* 品牌名称区域 */}
-          <div className="mb-16 space-y-6">
-            <h1 className="text-6xl font-bold mb-8 bg-gradient-to-r from-white via-cyan-200 to-blue-300 bg-clip-text text-transparent animate-fade-in-up tracking-wider">
+          <div className="mb-12 md:mb-16 space-y-4 md:space-y-6">
+            <h1
+              className={`${isMobile ? "text-3xl" : "text-6xl"} font-bold mb-6 md:mb-8 bg-gradient-to-r from-white via-cyan-200 to-blue-300 bg-clip-text text-transparent animate-fade-in-up tracking-wider transition-all duration-700`}
+            >
               Mr. Zhou AI Intelligent Center
             </h1>
-            <h2 className="text-3xl font-light text-cyan-200 tracking-widest animate-fade-in-up animation-delay-300">
+            <h2
+              className={`${isMobile ? "text-lg" : "text-3xl"} font-light text-cyan-200 tracking-widest animate-fade-in-up animation-delay-300 transition-all duration-700`}
+            >
               言启智云丨语枢万象
             </h2>
           </div>
 
           {/* 交互提示区域 */}
           {showSplashHint && (
-            <div className="animate-fade-in-up space-y-6">
-              <div className="text-cyan-300 text-2xl mb-6 animate-bounce-gentle">
+            <div className="animate-fade-in-up space-y-4 md:space-y-6">
+              <div
+                className={`text-cyan-300 ${isMobile ? "text-lg" : "text-2xl"} mb-4 md:mb-6 animate-bounce-gentle transition-all duration-500`}
+              >
                 <div className="flex items-center justify-center space-x-3">
                   <div className="w-1 h-1 bg-cyan-400 rounded-full animate-ping"></div>
-                  <span>点击任意位置或按任意键继续</span>
+                  <span>{isMobile ? "轻触屏幕继续" : "点击任意位置或按任意键继续"}</span>
                   <div className="w-1 h-1 bg-cyan-400 rounded-full animate-ping animation-delay-300"></div>
                 </div>
               </div>
@@ -510,23 +489,35 @@ export default function Dashboard() {
       {/* 主内容区域 */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* 顶部品牌标识 */}
-        <div className="absolute top-4 left-4 flex items-center space-x-3">
-          <img src="/images/logo-m.png" alt="Mr. Zhou AI" className="h-8 w-8" />
-          <span className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+        <div
+          className={`absolute top-4 ${isMobile ? "left-2" : "left-4"} flex items-center space-x-2 md:space-x-3 z-20`}
+        >
+          <img
+            src="/images/logo-m.png"
+            alt="Mr. Zhou AI"
+            className={`${isMobile ? "h-6 w-6" : "h-8 w-8"} transition-all duration-300`}
+          />
+          <span
+            className={`${isMobile ? "text-sm" : "text-lg"} font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent transition-all duration-300`}
+          >
             Mr. Zhou AI
           </span>
         </div>
 
         {/* 中央对话区域 */}
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-6 pt-16">
+        <div className={`flex-1 flex flex-col max-w-4xl mx-auto w-full ${isMobile ? "p-3 pt-14" : "p-6 pt-16"}`}>
           {/* 聊天消息区域 */}
-          <div className="flex-1 mb-6 space-y-4 overflow-y-auto max-h-[70vh] scroll-smooth">
+          <div
+            className={`flex-1 mb-4 md:mb-6 space-y-3 md:space-y-4 overflow-y-auto ${isMobile ? "max-h-[65vh]" : "max-h-[70vh]"} scroll-smooth custom-scrollbar`}
+          >
             {chatMessages.length === 0 && (
-              <div className="flex justify-center items-center h-64">
-                <div className="text-center space-y-4">
-                  <div className="text-2xl text-cyan-300">🎓</div>
-                  <div className="text-lg text-slate-300">Mr. Zhou AI 智能教育助手已就绪</div>
-                  <div className="text-sm text-slate-400">请输入您的学习需求或问题</div>
+              <div className={`flex justify-center items-center ${isMobile ? "h-48" : "h-64"}`}>
+                <div className="text-center space-y-3 md:space-y-4">
+                  <div className={`${isMobile ? "text-xl" : "text-2xl"} text-cyan-300`}>🎓</div>
+                  <div className={`${isMobile ? "text-base" : "text-lg"} text-slate-300`}>
+                    Mr. Zhou AI 智能教育助手已就绪
+                  </div>
+                  <div className={`${isMobile ? "text-xs" : "text-sm"} text-slate-400`}>请输入您的学习需求或问题</div>
                 </div>
               </div>
             )}
@@ -537,30 +528,30 @@ export default function Dashboard() {
                 className={`flex ${message.type === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
               >
                 <div
-                  className={`max-w-[80%] ${
+                  className={`${isMobile ? "max-w-[90%]" : "max-w-[80%]"} ${
                     message.type === "user"
                       ? "bg-cyan-600/20 border border-cyan-500/30 backdrop-blur-sm"
                       : message.type === "ai"
                         ? "bg-slate-800/30 border border-slate-700/30 backdrop-blur-sm"
                         : "bg-blue-600/20 border border-blue-500/30 backdrop-blur-sm"
-                  } rounded-2xl p-4 relative group shadow-lg`}
+                  } ${isMobile ? "rounded-xl p-3" : "rounded-2xl p-4"} relative group shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]`}
                 >
                   {message.type !== "user" && (
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
-                        <Avatar className="h-6 w-6 mr-2">
+                        <Avatar className={`${isMobile ? "h-5 w-5 mr-1.5" : "h-6 w-6 mr-2"}`}>
                           <AvatarFallback className="bg-cyan-600 text-white text-xs">AI</AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-cyan-300">Mr. Zhou AI</span>
+                        <span className={`${isMobile ? "text-xs" : "text-xs"} text-cyan-300`}>Mr. Zhou AI</span>
                       </div>
-                      {message.type === "ai" && (
+                      {message.type === "ai" && !isMobile && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-cyan-500/20 hover:scale-110"
                                 onClick={() => speakText(message.content)}
                               >
                                 <Volume2 className="h-3 w-3" />
@@ -574,13 +565,12 @@ export default function Dashboard() {
                       )}
                     </div>
                   )}
-                  <div className="text-slate-100 whitespace-pre-line">
+                  <div className={`text-slate-100 whitespace-pre-line ${isMobile ? "text-sm" : "text-base"}`}>
                     {message.type === "ai" && message.isAnimated ? (
                       <AnimatedTextBlock
                         text={message.content}
-                        speed={25}
+                        speed={isMobile ? 15 : 25}
                         onComplete={() => {
-                          // 动画完成后的回调
                           console.log("AI消息动画完成")
                         }}
                       />
@@ -588,7 +578,9 @@ export default function Dashboard() {
                       message.content
                     )}
                   </div>
-                  <div className="text-xs text-slate-400 mt-2">{message.timestamp.toLocaleTimeString()}</div>
+                  <div className={`${isMobile ? "text-xs" : "text-xs"} text-slate-400 mt-2`}>
+                    {message.timestamp.toLocaleTimeString()}
+                  </div>
                 </div>
               </div>
             ))}
@@ -600,23 +592,29 @@ export default function Dashboard() {
             {/* 智能功能提示 */}
             {showSuggestions && smartSuggestions.length > 0 && (
               <div className="absolute bottom-full left-0 right-0 mb-2 z-20">
-                <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center mb-3">
-                    <div className="text-lg mr-2">💡</div>
-                    <span className="text-sm text-slate-300">智能学习建议</span>
+                <div
+                  className={`bg-slate-800/90 backdrop-blur-sm border border-slate-700/50 ${isMobile ? "rounded-xl p-3" : "rounded-2xl p-4"} shadow-xl`}
+                >
+                  <div className="flex items-center mb-2 md:mb-3">
+                    <div className={`${isMobile ? "text-base mr-2" : "text-lg mr-2"}`}>💡</div>
+                    <span className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300`}>智能学习建议</span>
                   </div>
                   <div className="space-y-2">
                     {smartSuggestions.map((suggestion, index) => (
                       <button
                         key={index}
                         onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 transition-colors text-left group"
+                        className={`w-full flex items-center justify-between ${isMobile ? "p-2 rounded-lg" : "p-3 rounded-xl"} bg-slate-700/50 hover:bg-slate-600/50 active:bg-slate-600/70 transition-all duration-200 text-left group hover:scale-[1.02] mobile-touch-target tap-highlight-transparent`}
                       >
                         <div className="flex items-center">
-                          <span className="text-xl mr-3">{suggestion.icon}</span>
+                          <span className={`${isMobile ? "text-lg mr-2" : "text-xl mr-3"}`}>{suggestion.icon}</span>
                           <div>
-                            <div className="text-sm text-slate-200 font-medium">{suggestion.title}</div>
-                            <div className="text-xs text-slate-400">{suggestion.description}</div>
+                            <div className={`${isMobile ? "text-xs" : "text-sm"} text-slate-200 font-medium`}>
+                              {suggestion.title}
+                            </div>
+                            <div className={`${isMobile ? "text-xs" : "text-xs"} text-slate-400`}>
+                              {suggestion.description}
+                            </div>
                           </div>
                         </div>
                       </button>
@@ -626,21 +624,23 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/30 rounded-2xl p-4 shadow-lg">
+            <div
+              className={`bg-slate-800/30 backdrop-blur-sm border border-slate-700/30 ${isMobile ? "rounded-xl p-3" : "rounded-2xl p-4"} shadow-lg`}
+            >
               {/* 上传文件显示 */}
               {uploadedFiles.length > 0 && (
                 <div className="mb-3">
-                  <div className="text-sm text-slate-400 mb-2">已上传文件:</div>
+                  <div className={`${isMobile ? "text-xs" : "text-sm"} text-slate-400 mb-2`}>已上传文件:</div>
                   <div className="flex flex-wrap gap-2">
                     {uploadedFiles.map((file, index) => (
                       <div
                         key={index}
-                        className="flex items-center bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-1 text-xs text-slate-300"
+                        className={`flex items-center bg-slate-700/50 border border-slate-600/50 ${isMobile ? "rounded-md px-2 py-1" : "rounded-lg px-3 py-1"} text-xs text-slate-300`}
                       >
                         {file.name}
                         <button
                           onClick={() => setUploadedFiles((prev) => prev.filter((_, i) => i !== index))}
-                          className="ml-2 text-slate-500 hover:text-red-400"
+                          className="ml-2 text-slate-500 hover:text-red-400 transition-colors duration-200 mobile-touch-target"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -650,46 +650,48 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <div className="flex items-center space-x-3">
+              <div className={`flex items-center ${isMobile ? "space-x-2" : "space-x-3"}`}>
                 {/* 文件操作按钮组 */}
-                <div className="flex items-center space-x-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-slate-400 hover:text-cyan-400 rounded-full"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <Upload className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>上传文件</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                {!isMobile && (
+                  <div className="flex items-center space-x-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-slate-400 hover:text-cyan-400 hover:bg-cyan-400/10 rounded-full transition-all duration-300 hover:scale-110 btn-micro-interaction"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Upload className="h-5 w-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>上传文件</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
 
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-slate-400 hover:text-green-400 rounded-full"
-                          onClick={handleDownload}
-                          disabled={chatMessages.length === 0}
-                        >
-                          <Download className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>下载聊天记录</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-slate-400 hover:text-green-400 hover:bg-green-400/10 rounded-full transition-all duration-300 hover:scale-110 btn-micro-interaction"
+                            onClick={handleDownload}
+                            disabled={chatMessages.length === 0}
+                          >
+                            <Download className="h-5 w-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>下载聊天记录</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
 
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
 
@@ -702,7 +704,7 @@ export default function Dashboard() {
                     onChange={(e) => setUserInput(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     placeholder="请输入您的学习问题或需求..."
-                    className="w-full bg-slate-700/30 border border-slate-600/30 rounded-xl px-4 py-3 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 backdrop-blur-sm"
+                    className={`w-full bg-slate-700/30 border border-slate-600/30 ${isMobile ? "rounded-lg px-3 py-2.5 text-sm mobile-optimized" : "rounded-xl px-4 py-3"} text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 backdrop-blur-sm transition-all duration-300`}
                   />
                 </div>
 
@@ -714,14 +716,14 @@ export default function Dashboard() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={`rounded-full ${
+                          className={`${isMobile ? "h-9 w-9" : "h-10 w-10"} rounded-full transition-all duration-300 hover:scale-110 btn-micro-interaction mobile-touch-target ${
                             isRecording
-                              ? "text-red-500 hover:text-red-400 animate-pulse"
-                              : "text-slate-400 hover:text-cyan-400"
+                              ? "text-red-500 hover:text-red-400 hover:bg-red-400/10 animate-pulse"
+                              : "text-slate-400 hover:text-cyan-400 hover:bg-cyan-400/10"
                           }`}
                           onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                         >
-                          {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                          {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -736,51 +738,32 @@ export default function Dashboard() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={`rounded-full ${
+                          className={`${isMobile ? "h-9 w-9" : "h-10 w-10"} rounded-full transition-all duration-300 hover:scale-110 btn-micro-interaction mobile-touch-target ${
                             isPlaying
-                              ? "text-green-500 hover:text-green-400"
-                              : voiceSettings.isEnabled
-                                ? "text-slate-400 hover:text-cyan-400"
-                                : "text-slate-600 hover:text-slate-500"
+                              ? "text-green-500 hover:text-green-400 hover:bg-green-400/10"
+                              : voiceEnabled
+                                ? "text-slate-400 hover:text-cyan-400 hover:bg-cyan-400/10"
+                                : "text-slate-600 hover:text-slate-500 hover:bg-slate-500/10"
                           }`}
                           onClick={() => {
                             if (isPlaying) {
                               stopSpeaking()
                             } else {
-                              voiceSettings.toggleEnabled()
+                              setVoiceEnabled(!voiceEnabled)
                             }
                           }}
                         >
                           {isPlaying ? (
-                            <VolumeX className="h-5 w-5" />
-                          ) : voiceSettings.isEnabled ? (
-                            <Volume2 className="h-5 w-5" />
+                            <VolumeX className="h-4 w-4" />
+                          ) : voiceEnabled ? (
+                            <Volume2 className="h-4 w-4" />
                           ) : (
-                            <VolumeX className="h-5 w-5" />
+                            <VolumeX className="h-4 w-4" />
                           )}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{isPlaying ? "停止播放" : voiceSettings.isEnabled ? "关闭语音输出" : "开启语音输出"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-
-                  {/* 语音设置按钮 */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-full text-slate-400 hover:text-cyan-400"
-                          onClick={() => setShowVoiceSettings(true)}
-                        >
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>语音设置</p>
+                        <p>{isPlaying ? "停止播放" : voiceEnabled ? "关闭语音输出" : "开启语音输出"}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -790,15 +773,17 @@ export default function Dashboard() {
                 <Button
                   onClick={handleSendMessage}
                   disabled={!userInput.trim()}
-                  className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 rounded-xl px-6"
+                  className={`bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 ${isMobile ? "rounded-lg px-4 py-2.5 text-sm" : "rounded-xl px-6"} transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 active:scale-95 btn-micro-interaction mobile-touch-target`}
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className={`${isMobile ? "h-3 w-3 mr-1.5" : "h-4 w-4 mr-2"}`} />
                   发送
                 </Button>
               </div>
 
               {/* 底部控制 */}
-              <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
+              <div
+                className={`flex items-center justify-between ${isMobile ? "mt-2 text-xs" : "mt-3 text-xs"} text-slate-500`}
+              >
                 <div className="flex items-center space-x-2">
                   <Brain className="h-3 w-3 text-cyan-500" />
                   <Label htmlFor="chat-mode" className="text-xs text-slate-400">
@@ -814,17 +799,19 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <ModelSelector
-                    value={selectedModel}
-                    onValueChange={setSelectedModel}
-                    onModelSelect={(model) => {
-                      setSelectedModelType(model.type)
-                      if (model.type === "local") {
-                        const localModel = localModels.find((m) => m.id === model.id)
-                        setSelectedLocalModel(localModel || null)
-                      }
-                    }}
-                  />
+                  {!isMobile && (
+                    <ModelSelector
+                      value={selectedModel}
+                      onValueChange={setSelectedModel}
+                      onModelSelect={(model) => {
+                        setSelectedModelType(model.type)
+                        if (model.type === "local") {
+                          const localModel = localModels.find((m) => m.id === model.id)
+                          setSelectedLocalModel(localModel || null)
+                        }
+                      }}
+                    />
+                  )}
                   <span className="text-xs text-slate-500">{isRecording ? "录音中..." : "按 Enter 发送消息"}</span>
                 </div>
               </div>
@@ -832,12 +819,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* 语音设置对话框 */}
-      <VoiceSettingsDialog 
-        open={showVoiceSettings} 
-        onOpenChange={setShowVoiceSettings} 
-      />
     </div>
   )
 }

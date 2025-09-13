@@ -69,6 +69,24 @@
 }
 
 /* 自定义动画 */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-slower {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -83,22 +101,20 @@
 @keyframes fade-out {
   from {
     opacity: 1;
-    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: scale(0.95);
   }
 }
 
 @keyframes scale-out {
   from {
-    opacity: 1;
     transform: scale(1);
+    opacity: 1;
   }
   to {
+    transform: scale(0.8);
     opacity: 0;
-    transform: scale(1.1);
   }
 }
 
@@ -112,50 +128,54 @@
   }
 }
 
-@keyframes bounce-slow {
+@keyframes pulse-glow {
   0%,
   100% {
-    transform: translateY(0);
+    box-shadow: 0 0 5px rgba(6, 182, 212, 0.5);
   }
   50% {
-    transform: translateY(-5px);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.8);
   }
 }
 
-@keyframes spin-slow {
+@keyframes slide-in-right {
   from {
-    transform: rotate(0deg);
+    transform: translateX(100%);
+    opacity: 0;
   }
   to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse-slow {
-  0%,
-  100% {
+    transform: translateX(0);
     opacity: 1;
   }
-  50% {
-    opacity: 0.5;
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-@keyframes gradient-radial {
-  0% {
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
-  50% {
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
-  }
-  100% {
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+  to {
+    opacity: 1;
   }
 }
 
-/* 动画类 */
-.animate-fade-in {
-  animation: fade-in-up 0.5s ease-out forwards;
+/* 应用动画类 */
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-spin-slower {
+  animation: spin-slower 4s linear infinite;
 }
 
 .animate-fade-in-up {
@@ -163,102 +183,171 @@
 }
 
 .animate-fade-out {
-  animation: fade-out 0.8s ease-in forwards;
+  animation: fade-out 0.8s ease-out forwards;
 }
 
 .animate-scale-out {
-  animation: scale-out 0.6s ease-in forwards;
+  animation: scale-out 0.6s ease-out forwards;
 }
 
 .animate-bounce-gentle {
   animation: bounce-gentle 2s ease-in-out infinite;
 }
 
-.animate-bounce-slow {
-  animation: bounce-slow 3s ease-in-out infinite;
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 4s ease-in-out infinite;
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
 }
 
-.bg-gradient-radial {
-  animation: gradient-radial 6s ease-in-out infinite;
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
 }
 
 /* 动画延迟类 */
 .animation-delay-300 {
-  animation-delay: 0.3s;
+  animation-delay: 300ms;
 }
 
 .animation-delay-500 {
-  animation-delay: 0.5s;
-}
-
-.animation-delay-600 {
-  animation-delay: 0.6s;
+  animation-delay: 500ms;
 }
 
 .animation-delay-700 {
-  animation-delay: 0.7s;
+  animation-delay: 700ms;
 }
 
-.animation-delay-900 {
-  animation-delay: 0.9s;
+/* 响应式动画优化 */
+@media (max-width: 768px) {
+  .animate-bounce-gentle {
+    animation: bounce-gentle 3s ease-in-out infinite;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  .touch-action-manipulation {
+    touch-action: manipulation;
+  }
+
+  .tap-highlight-transparent {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* 按钮微交互 */
+.btn-micro-interaction {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-micro-interaction:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-micro-interaction:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 页面转场动画 */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* 加载状态动画 */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 深色模式下的加载动画 */
+.dark .loading-shimmer {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
 }
 
 /* 滚动条样式 */
-::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.1);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(6, 182, 212, 0.3);
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(6, 182, 212, 0.5);
+  border-radius: 3px;
 }
 
-/* 键盘按键样式 */
-kbd {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1;
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.7);
 }
 
-/* 无界面设计样式 */
-.borderless-chat {
-  background: transparent;
-  border: none;
-  backdrop-filter: blur(10px);
-}
-
-.geometric-line {
-  stroke: #06b6d4;
-  stroke-width: 1;
-  opacity: 0.3;
-  animation: geometric-flow 8s ease-in-out infinite;
-}
-
-@keyframes geometric-flow {
-  0%,
-  100% {
-    opacity: 0.1;
-    stroke-dasharray: 5, 15;
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .mobile-optimized {
+    font-size: 16px; /* 防止iOS缩放 */
   }
-  50% {
-    opacity: 0.4;
-    stroke-dasharray: 15, 5;
+
+  .mobile-touch-target {
+    min-height: 44px; /* iOS推荐的最小触摸目标 */
+    min-width: 44px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border: 2px solid;
+  }
+}
+
+/* 减少动画偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
